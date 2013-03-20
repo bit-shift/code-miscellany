@@ -11,3 +11,10 @@ So far contains:
         smith_numbers.py
         prime_factors.py
 
+    - An uploader for uploading (well duh what else would an uploader do) images
+      to img.tylian.net. Not really very tested, otherwise I'd put it in Toksy's
+      utilities repo instead (still will when I've accounted for more failure
+      cases)::
+
+        tylian_upload.py
+
