@@ -19,7 +19,8 @@ So far contains:
         tylian_upload.py
 
     - A very simple experiment with generator-based cooperative multitasking,
-      using yield to pass out the number of cycles the generator wants to
-      "sleep" for ("yield" is assumed to be equal to "yield 1")::
+      using yield to pass out a result and the number of cycles the generator
+      wants to "sleep" for ("yield result" is assumed to be equal to
+      "yield result, 1")::
 
         cooperative_multitasking.py
