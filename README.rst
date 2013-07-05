@@ -24,3 +24,5 @@ So far contains:
       "yield result, 1")::
 
         cooperative_multitasking.py
+
+    - A proof-of-concept module implementing the Luhn check digit algorithm
