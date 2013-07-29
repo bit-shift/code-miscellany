@@ -8,7 +8,7 @@ valid_cleartext_chars = (set(string.ascii_letters) |
                         set(string.whitespace))
 valid_key_chars = set(string.ascii_letters)
 
-def vignere_generator(cleartext, key):
+def vignere_generator(cleartext, key, decode=False):
     assert len(set(cleartext) - set(valid_cleartext_chars)) == 0
     assert len(set(key) - set(valid_key_chars)) == 0
 
@@ -29,12 +29,15 @@ def vignere_generator(cleartext, key):
             yield cleartext_char
         else:
             key_offset = ord(key_char) - ord("A")
+            if decode:
+                key_offset = 0 - key_offset
+
             if "A" <= cleartext_char <= "Z":
                 cleartext_offset = ord(cleartext_char) - ord("A")
-                yield chr(ord("A") + ((cleartext_offset + key_offset) % 26))
+                yield chr(ord("A") + ((26 + cleartext_offset + key_offset) % 26))
             else:
                 cleartext_offset = ord(cleartext_char) - ord("a")
-                yield chr(ord("a") + ((cleartext_offset + key_offset) % 26))
+                yield chr(ord("a") + ((26 + cleartext_offset + key_offset) % 26))
 
-def vignere_string(cleartext, key):
-    return "".join(vignere_generator(cleartext, key))
+def vignere_string(cleartext, key, decode=False):
+    return "".join(vignere_generator(cleartext, key, decode))
