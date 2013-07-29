@@ -25,4 +25,10 @@ So far contains:
 
         cooperative_multitasking.py
 
-    - A proof-of-concept module implementing the Luhn check digit algorithm
+    - A proof-of-concept module implementing the Luhn check digit algorithm::
+
+        luhn.py
+
+    - A module with a basic Vignere cipher implementation::
+
+        vignere.py
