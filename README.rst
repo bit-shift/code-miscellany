@@ -42,3 +42,10 @@ So far contains:
       later::
 
         quicksort.py
+
+    - A short script to search words provided on stdin for matching against the
+      set of characters passed on the command-line. Could be used for anagram
+      searching by piping in a dictionary and grepping for only the lines where
+      there were 0 leftover chars::
+
+        word_lookup.py
