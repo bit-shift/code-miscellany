@@ -32,3 +32,8 @@ So far contains:
     - A module with a basic Vignere cipher implementation::
 
         vignere.py
+
+    - A quick proof-of-concept for checking for intentionally empty/missing
+      arguments in shell scripts::
+
+        case_test.sh
