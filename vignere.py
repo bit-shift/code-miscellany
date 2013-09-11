@@ -34,9 +34,11 @@ def vignere_generator(cleartext, key, decode=False):
 
             if "A" <= cleartext_char <= "Z":
                 cleartext_offset = ord(cleartext_char) - ord("A")
+                print((26 + cleartext_offset + key_offset) % 26)
                 yield chr(ord("A") + ((26 + cleartext_offset + key_offset) % 26))
             else:
                 cleartext_offset = ord(cleartext_char) - ord("a")
+                print((26 + cleartext_offset + key_offset) % 26)
                 yield chr(ord("a") + ((26 + cleartext_offset + key_offset) % 26))
 
 def vignere_string(cleartext, key, decode=False):
