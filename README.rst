@@ -49,3 +49,11 @@ So far contains:
       there were 0 leftover chars::
 
         word_lookup.py
+
+    - A script checking the numbers (corresponding to Pokémon) output by a "find
+      out which Pokémon you are"-type algorithm I saw on tumblr, to determine if
+      they're well-distributed. Outputs the frequency of different Pokémon for
+      different name lengths and birthdays, and then a sorted list of total
+      occurences of each at the end::
+
+       pokemon_graphing.py
