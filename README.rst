@@ -37,3 +37,8 @@ So far contains:
       arguments in shell scripts::
 
         case_test.sh
+
+    - A quicksort implementation with a small runnable stub for maybe profiling
+      later::
+
+        quicksort.py
