@@ -57,3 +57,11 @@ So far contains:
       occurences of each at the end::
 
        pokemon_graphing.py
+
+    - A toy brainfuck interpreter/transpiler, and some sample programs::
+
+       brainfuck.py       # The interpreter/transpiler.
+       cat.bf             # Minimal example, mimics behaviour of cat utility.
+       helloworld.bf      # A dumb approach to Hello World. Also tests UTF-8.
+       efficienthello.bf  # A cleaner approach to Hello World.
+       brainfuck.bf       # A brainfuck transpiler in brainfuck.
