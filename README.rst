@@ -51,10 +51,11 @@ So far contains:
         word_lookup.py
 
     - A script checking the numbers (corresponding to Pokémon) output by a "find
-      out which Pokémon you are"-type algorithm I saw on tumblr, to determine if
-      they're well-distributed. Outputs the frequency of different Pokémon for
-      different name lengths and birthdays, and then a sorted list of total
-      occurences of each at the end::
+      out which Pokémon you are"-type algorithm I saw on tumblr
+      (http://minti-pony.tumblr.com/post/51523769494/lyricamod-zachmorristoonart-pettyartist),
+      to determine if they're well-distributed (no). Outputs the frequency of
+      different Pokémon for different name lengths and birthdays, and then a
+      sorted list of total occurences of each at the end::
 
        pokemon_graphing.py
 
