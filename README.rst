@@ -66,3 +66,11 @@ So far contains:
        helloworld.bf      # A dumb approach to Hello World. Also tests UTF-8.
        efficienthello.bf  # A cleaner approach to Hello World.
        brainfuck.bf       # A brainfuck transpiler in brainfuck.
+
+    - A script for finding years in which no digit appears twice, grouping them
+      by ranges and displaying range length where more than one consecutive year
+      has that property. Initially coded directly in the interpreter for a post
+      (http://bitshift-pony.tumblr.com/post/64129777247/imdoingstuffandthingslori),
+      but since cleaned up for easier reading::
+
+       no_repeat_years.py
