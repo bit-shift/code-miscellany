@@ -74,3 +74,8 @@ So far contains:
       but since cleaned up for easier reading::
 
        no_repeat_years.py
+
+    - A script for converting Nokia Composer notation into the sequence of
+      keypresses to enter it into an actual handset::
+
+       nokia_composer.py
