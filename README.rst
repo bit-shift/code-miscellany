@@ -79,3 +79,7 @@ So far contains:
       keypresses to enter it into an actual handset::
 
        nokia_composer.py
+
+    - A toy ocaml program for (en|de)coding files using the Numkrot cipher::
+
+       numkrot.ml
