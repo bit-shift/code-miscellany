@@ -105,7 +105,8 @@ let decode_file filename =
 
 
 let () =
-  match Array.to_list (Array.slice Sys.argv 1 0) with
+  let args = Array.to_list (Array.slice Sys.argv 1 0) in
+  match args with
   | []       -> exit 1
   | "-d"::xs -> ignore (List.map ~f:decode_file xs);
                    exit 0
