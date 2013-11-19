@@ -1,11 +1,24 @@
 open Core.Std;;
 
-(* pipeline operator *)
-let (>>) f g x = g (f x);;
+(* cipher creation function *)
+let buildCipher mappings =
+  let encodeMappings = List.map ~f:(fun (i, o) -> (Char.uppercase i, Char.uppercase o)) mappings in
+  let decodeMappings = List.map ~f:Tuple2.swap encodeMappings
+  and transcoder m c =
+    match List.Assoc.find m c with
+    | Some c' -> c'
+    | None    -> match List.Assoc.find m (Char.uppercase c) with
+                 | Some c' -> (Char.lowercase c')
+                 | None    -> c
+  in (transcoder mappings, transcoder decodeMappings)
+;;
 
 (* slurping operator *)
 let (<@>) filename handler =
-  let chan = In_channel.create filename in
+  let chan = match filename with
+  | "-" -> stdin
+  | filename -> In_channel.create filename
+  in
   let rec reader_loop acc =
     let line = try Some (input_line chan)
                with End_of_file -> None in
@@ -21,95 +34,25 @@ let (<@>) filename handler =
 (* convenience function for printing a line *)
 let println s = print_string (s ^ "\n");;
 
-(* string encoder *)
-let numkrot s =
-  let numkrot_char c =
-    match c with
-    | 'A' -> 'U' | 'a' -> 'u'
-    | 'B' -> 'V' | 'b' -> 'v'
-    | 'C' -> 'S' | 'c' -> 's'
-    | 'D' -> 'T' | 'd' -> 't'
-    | 'E' -> 'O' | 'e' -> 'o'
-    | 'F' -> 'H' | 'f' -> 'h'
-    | 'G' -> 'K' | 'g' -> 'k'
-    | 'H' -> 'F' | 'h' -> 'f'
-    | 'I' -> 'Y' | 'i' -> 'y'
-    | 'J' -> 'Z' | 'j' -> 'z'
-    | 'K' -> 'G' | 'k' -> 'g'
-    | 'L' -> 'R' | 'l' -> 'r'
-    | 'M' -> 'N' | 'm' -> 'n'
-    | 'N' -> 'M' | 'n' -> 'm'
-    | 'O' -> 'E' | 'o' -> 'e'
-    | 'P' -> 'X' | 'p' -> 'x'
-    | 'Q' -> 'W' | 'q' -> 'w'
-    | 'R' -> 'L' | 'r' -> 'l'
-    | 'S' -> 'C' | 's' -> 'c'
-    | 'T' -> 'D' | 't' -> 'd'
-    | 'U' -> 'A' | 'u' -> 'a'
-    | 'V' -> 'B' | 'v' -> 'b'
-    | 'W' -> 'P' | 'w' -> 'p'
-    | 'X' -> 'Q' | 'x' -> 'q'
-    | 'Y' -> 'I' | 'y' -> 'i'
-    | 'Z' -> 'J' | 'z' -> 'j'
-    | c -> c
-  in
-  String.map ~f:numkrot_char s
+(* file/process applier *)
+let process_file processor filename =
+  let lineHandler s = println (String.map ~f:processor s) in
+  filename <@> lineHandler
 ;;
 
-(* string decoder *)
-let denumkrot s =
-  let denumkrot_char c =
-    match c with
-    | 'A' -> 'U' | 'a' -> 'u'
-    | 'B' -> 'V' | 'b' -> 'v'
-    | 'C' -> 'S' | 'c' -> 's'
-    | 'D' -> 'T' | 'd' -> 't'
-    | 'E' -> 'O' | 'e' -> 'o'
-    | 'F' -> 'H' | 'f' -> 'h'
-    | 'G' -> 'K' | 'g' -> 'k'
-    | 'H' -> 'F' | 'h' -> 'f'
-    | 'I' -> 'Y' | 'i' -> 'y'
-    | 'J' -> 'Z' | 'j' -> 'z'
-    | 'K' -> 'G' | 'k' -> 'g'
-    | 'L' -> 'R' | 'l' -> 'r'
-    | 'M' -> 'N' | 'm' -> 'n'
-    | 'N' -> 'M' | 'n' -> 'm'
-    | 'O' -> 'E' | 'o' -> 'e'
-    | 'P' -> 'W' | 'p' -> 'w'
-    | 'Q' -> 'X' | 'q' -> 'x'
-    | 'R' -> 'L' | 'r' -> 'l'
-    | 'S' -> 'C' | 's' -> 'c'
-    | 'T' -> 'D' | 't' -> 'd'
-    | 'U' -> 'A' | 'u' -> 'a'
-    | 'V' -> 'B' | 'v' -> 'b'
-    | 'W' -> 'Q' | 'w' -> 'q'
-    | 'X' -> 'P' | 'x' -> 'p'
-    | 'Y' -> 'I' | 'y' -> 'i'
-    | 'Z' -> 'J' | 'z' -> 'j'
-    | c -> c
-  in
-  String.map ~f:denumkrot_char s
-;;
+(* produce our numkrot encoder/decoder pair *)
+let (numkrot, denumkrot) = buildCipher [('A','U') ; ('B','V') ; ('C','S') ; ('D','T') ; ('E','O') ; ('F','H') ; ('G','K') ; ('H','F') ; ('I','Y') ; ('J','Z') ; ('K','G') ; ('L','R') ; ('M','N') ; ('N','M') ; ('O','E') ; ('P','X') ; ('Q','W') ; ('R','L') ; ('S','C') ; ('T','D') ; ('U','A') ; ('V','B') ; ('W','P') ; ('X','Q') ; ('Y','I') ; ('Z','J')];;
 
-(* file encoder *)
-let encode_file filename =
-  let pipeline = (numkrot >> println) in
-  filename <@> pipeline
-;;
-
-(* file decoder *)
-let decode_file filename =
-  let pipeline = (denumkrot >> println) in
-  filename <@> pipeline
-;;
-
-
+(* and finally pull it all together *)
 let () =
   let args = Array.to_list (Array.slice Sys.argv 1 0) in
   match args with
-  | []       -> exit 1
-  | "-d"::xs -> ignore (List.map ~f:decode_file xs);
-                   exit 0
-  | xs       -> ignore (List.map ~f:encode_file xs);
-                   exit 0
+  | []       -> ignore (process_file numkrot "-");
+                exit 0
+  | ["-d"]   -> ignore (process_file denumkrot "-");
+                exit 0
+  | "-d"::xs -> ignore (List.map ~f:(process_file denumkrot) xs);
+                exit 0
+  | xs       -> ignore (List.map ~f:(process_file numkrot) xs);
+                exit 0
 ;;
