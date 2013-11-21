@@ -44,12 +44,12 @@ let (numkrot, denumkrot) = buildCipher [('A','U') ; ('B','V') ; ('C','S') ; ('D'
 let () =
   let args = Array.to_list (Array.slice Sys.argv 1 0) in
   match args with
-  | []       -> ignore (process_file numkrot "-");
+  | []       -> process_file numkrot "-";
                 exit 0
-  | ["-d"]   -> ignore (process_file denumkrot "-");
+  | ["-d"]   -> process_file denumkrot "-";
                 exit 0
-  | "-d"::xs -> ignore (List.map ~f:(process_file denumkrot) xs);
+  | "-d"::xs -> List.iter ~f:(process_file denumkrot) xs;
                 exit 0
-  | xs       -> ignore (List.map ~f:(process_file numkrot) xs);
+  | xs       -> List.iter ~f:(process_file numkrot) xs;
                 exit 0
 ;;
