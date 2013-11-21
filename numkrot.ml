@@ -31,13 +31,10 @@ let (<@>) filename handler =
   out
 ;;
 
-(* convenience function for printing a line *)
-let println s = print_string (s ^ "\n");;
-
 (* file/process applier *)
 let process_file processor filename =
-  let lineHandler s = println (String.map ~f:processor s) in
-  filename <@> lineHandler
+  let lineHandler s = s |> String.map ~f:processor |> print_endline in
+  ignore (filename <@> lineHandler)
 ;;
 
 (* produce our numkrot encoder/decoder pair *)
