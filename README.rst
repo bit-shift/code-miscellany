@@ -83,3 +83,8 @@ So far contains:
     - A toy ocaml program for (en|de)coding files using the Numkrot cipher::
 
        numkrot.ml
+
+    - A tail-recursive FizzBuzz printer in OCaml, with the ability to take an
+      iteration count on the command-line::
+
+       fizzbuzz.ml
