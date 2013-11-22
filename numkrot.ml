@@ -34,7 +34,10 @@ let (<@>) filename handler =
 (* file/process applier *)
 let process_file processor filename =
   let lineHandler s = s |> String.map ~f:processor |> print_endline in
-  ignore (filename <@> lineHandler)
+  try
+    ignore (filename <@> lineHandler)
+  with
+  | Sys_error msg -> print_endline msg
 ;;
 
 (* produce our numkrot encoder/decoder pair *)
