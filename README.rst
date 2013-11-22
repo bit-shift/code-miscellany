@@ -88,3 +88,9 @@ So far contains:
       iteration count on the command-line::
 
        fizzbuzz.ml
+
+    - A toy OCaml program for finding all permutations of the sequence of
+      arguments provided to it (so for example, "a b c" -> "a b c", "a c b",
+      "b a c", "b c a", "c a b", "c b a")::
+
+       permutations.ml
