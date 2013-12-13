@@ -94,3 +94,8 @@ So far contains:
       "b a c", "b c a", "c a b", "c b a")::
 
        permutations.ml
+
+    - A little shell script to store quick notes (aliased as @="noglob jotnote"
+      in my environment for very fast noting)::
+
+       jotnote.sh
