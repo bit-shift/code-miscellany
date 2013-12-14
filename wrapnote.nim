@@ -16,6 +16,14 @@ proc indentedWrap(line: string, maxLineWidth = 80): seq[string] =
 type TMode = enum
     wrapInput, showUsage
 
+const usage =
+    @["Usage: wrapnote [OPTION]... [FILE]...",
+      "Output FILE(s), or standard input, to standard output, preserving",
+      "indentation of indented sections.",
+      "",
+      "  -w=WIDTH, --width=WIDTH      wrap to WIDTH characters (default: 80)",
+      "  -h, --help                   display this help and exit"]
+
 var
     inFiles = @[stdin]
     wrapWidth = 80
@@ -45,15 +53,12 @@ for kind, key, val in getopt():
 
 case activeMode
 of showUsage:
-    for line in @["Usage: wrapnote [OPTION]... [FILE]...",
-                  "Output FILE(s), or standard input, to standard output, preserving indentation",
-                  "of indented sections.",
-                  "",
-                  "  -w=WIDTH, --width=WIDTH      wrap to WIDTH characters (default: 80)",
-                  "  -h, --help                   display this help and exit"]:
+    for line in usage:
         stdout.writeln(line)
 of wrapInput:
     for inFile in inFiles:
         for line in inFile.lines():
             for wrappedLine in line.indentedWrap(wrapWidth):
                 stdout.writeln(wrappedLine)
+        if inFile != stdin:
+            inFile.close()
