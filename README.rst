@@ -100,7 +100,6 @@ So far contains:
 
        jotnote.sh
 
-    - A short Nimrod program to wrap jotnote notes to 80 chars per line (TODO:
-      add the ability to specify chars-per-line)::
+    - A short Nimrod program to wrap jotnote notes to 80 chars per line::
 
        wrapnote.nim   # as an aside, nimrod's standard library is awesome
