@@ -18,7 +18,7 @@ type TMode = enum
 
 const usage =
     @["Usage: wrapnote [OPTION]... [FILE]...",
-      "Output FILE(s), or standard input, to standard output, preserving",
+      "Output FILE(s), or standard input, to standard output, preserving input",
       "indentation of indented sections.",
       "",
       "  -w=WIDTH, --width=WIDTH      wrap to WIDTH characters (default: 80)",
