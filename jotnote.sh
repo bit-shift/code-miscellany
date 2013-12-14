@@ -14,6 +14,6 @@ case "$1" in
         echo >> "${JOTNOTE_FILE}"
 
         echo
-        tail -n3 "${JOTNOTE_FILE}" | head -n2
+        tail -n3 "${JOTNOTE_FILE}" | head -n2 | wrapnote
         ;;
 esac
