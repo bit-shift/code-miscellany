@@ -7,3 +7,6 @@ echo -n "$(date --iso-8601=seconds)   " >> "${JOTNOTE_FILE}"
 echo "$(pwd)" >> "${JOTNOTE_FILE}"
 echo "   $@" >> "${JOTNOTE_FILE}"
 echo >> "${JOTNOTE_FILE}"
+
+echo
+tail -n3 "${JOTNOTE_FILE}" | head -n2
