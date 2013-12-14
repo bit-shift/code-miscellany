@@ -99,3 +99,9 @@ So far contains:
       in my environment for very fast noting)::
 
        jotnote.sh
+
+    - A short Nimrod program to wrap jotnote notes to 80 chars per line (TODO:
+      add the ability to specify chars-per-line, and generalize it to wrap
+      anything while preserving indent)::
+
+       wrapnote.nim   # as an aside, nimrod's standard library is awesome
