@@ -103,3 +103,7 @@ So far contains:
     - A short Nimrod program to wrap jotnote notes to 80 chars per line::
 
        wrapnote.nim   # as an aside, nimrod's standard library is awesome
+
+    - A proof-of-concept for just how far nimrod's case-insensitivity goes::
+
+       names_test.nim
