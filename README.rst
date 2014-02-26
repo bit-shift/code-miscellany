@@ -107,3 +107,25 @@ So far contains:
     - A proof-of-concept for just how far nimrod's case-insensitivity goes::
 
        names_test.nim
+
+    - A very small reimplementation of dos2unix in C::
+
+       d2u.c
+
+    - A somewhat larger reimplementation of tr in Python::
+
+       tr.py
+
+    - Hyperoperations (https://en.wikipedia.org/wiki/Hyperoperation) in Python::
+
+       hyperop.py
+
+    - A few experiments with writing increasingly generic FizzBuzz programs
+      in Haskell::
+
+       fizzbuzz.hs
+       genericfizzbuzz.hs
+
+    - A pretty nice alternative implementation of wc in Haskell::
+
+       WC.hs
