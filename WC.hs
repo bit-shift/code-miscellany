@@ -4,6 +4,8 @@ import System.Environment (getArgs, getProgName)
 data CountMode = CountLines | CountChars | CountAllChars | CountWords | ShowHelp
     deriving Eq
 
+data FileOrStdin = File FilePath | Stdin
+
 parseArgs (x:xs) mode files | x == "-l" = parseArgs xs CountLines files
                             | x == "-c" = parseArgs xs CountChars files
                             | x == "-C" = parseArgs xs CountAllChars files
@@ -25,13 +27,13 @@ putUsage progname = do
     putStrLn "  -w    print word counts"
     putStrLn "  -h    print this help message, and exit"
 
-myReadFile "-"      = getContents
-myReadFile filename = readFile filename
+readFileOrStdin Stdin           = getContents
+readFileOrStdin (File filename) = readFile filename
 
 putFileCount mode filename = do
-    let name = if filename == "-" then "<stdin>"
-                                  else filename
-    input <- myReadFile filename
+    let (name, file) = if filename == "-" then ("<stdin>", Stdin)
+                                          else (filename, File filename)
+    input <- readFileOrStdin file
     case mode of
         CountLines    -> putLength name (lines input)
         CountChars    -> putLength name (concat (lines input))
