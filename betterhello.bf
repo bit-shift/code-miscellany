@@ -25,17 +25,16 @@
 +++++                        ; increase to 'W'
 
 >++++++++++[<                ; loop on a 10 counter
-    <<<<.                    ; move to H ; print
-    <.                       ; move to E ; print
-    >>.                      ; move to L ; print
-    .                        ; stay on L ; print
-    >.                       ; move to O ; print
-    <<<<<.                   ; move to space ; print
-    >>>>>>>.                 ; move to W ; print
-    <<.                      ; move to O ; print
-    >.                       ; move to R ; print
-    <<.                      ; move to L ; print
-    <<<.                     ; move to D ; print
-    <<.                      ; move to newline ; print
+    <<<< .                   ; move to H ; print
+    < .                      ; move to E ; print
+    >> ..                    ; move to L ; print twice
+    > .                      ; move to O ; print
+    <<<<< .                  ; move to space ; print
+    >>>>>>> .                ; move to W ; print
+    << .                     ; move to O ; print
+    > .                      ; move to R ; print
+    << .                     ; move to L ; print
+    <<< .                    ; move to D ; print
+    << .                     ; move to newline ; print
     >>>>>>>>                 ; move back to W for next iter
 >-]                          ; other end of the 10 loop
