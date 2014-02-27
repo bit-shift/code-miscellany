@@ -27,19 +27,24 @@ putUsage progname = do
     putStrLn "  -w    print word counts"
     putStrLn "  -h    print this help message, and exit"
 
+fileOrStdinFromPath path | path == "-" = Stdin
+                         | otherwise   = File path
+
 readFileOrStdin Stdin           = getContents
 readFileOrStdin (File filename) = readFile filename
 
-putFileCount mode filename = do
-    let (name, file) = if filename == "-" then ("<stdin>", Stdin)
-                                          else (filename, File filename)
-    input <- readFileOrStdin file
+printableName Stdin = "<stdin>"
+printableName (File filename) = filename
+
+putFileCount mode path = do
+    let inputSource = fileOrStdinFromPath path
+    input <- readFileOrStdin inputSource
     case mode of
-        CountLines    -> putLength name (lines input)
-        CountChars    -> putLength name (concat (lines input))
-        CountAllChars -> putLength name input
-        CountWords    -> putLength name (words input)
-        where putLength f l = putStrLn (f ++ ": " ++ (show (length l)))
+        CountLines    -> putLength inputSource (lines input)
+        CountChars    -> putLength inputSource (concat (lines input))
+        CountAllChars -> putLength inputSource input
+        CountWords    -> putLength inputSource (words input)
+        where putLength f l = putStrLn ((printableName f) ++ ": " ++ (show (length l)))
 
 main = do
     args <- getArgs
