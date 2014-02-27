@@ -15,7 +15,7 @@ parseArgs (x:xs) mode files | x == "-l" = parseArgs xs CountLines files
 parseArgs [] mode files = (mode, reverse files)
 
 putUsage progname = do
-    putStrLn ("Usage: " ++ progname ++ " OPTION [FILE]")
+    putStrLn ("Usage: " ++ progname ++ " [OPTION] [FILE...]")
     putStrLn "Prints line, word, or char (with or without newlines) counts"
     putStrLn "for each FILE. With no FILE, or with \"-\", standard input is"
     putStrLn "counted instead. If no count type option is given, defaults to"
