@@ -77,6 +77,20 @@ finalizeType f@(TypedFile _ _ _) = return f
 --
 -- SOURCE-LINE FILTERING
 
+--- LINE TESTS
+isAllWhitespace line = null (filter (\c -> not (c == ' ' || c == '\t')) line)
+
+--- HELPERS
+applyAll fs x = [f x | f <- fs]
+
+filterNone ps (x:xs) = if or (applyAll ps x)
+                       then filterNone ps xs
+                       else x:(filterNone ps xs)
+filterNone ps []     = []
+
+--- SOURCE-LINE FILTERS
+sourceLines Plaintext = filterNone [null, isAllWhitespace]
+
 sourceLines _ = id
 
 --
