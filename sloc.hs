@@ -131,7 +131,7 @@ cachedReadTypedFile f@(TypedFile path filetype _) = do
         Nothing         -> do f@(TypedFile path _ contents) <- State.lift $ readTypedFile f
                               case contents of
                                 (Just contents) -> State.modify (Map.insert path contents)
-                                Nothing         -> error "Failed to read file."
+                                Nothing         -> error ("Failed to read '" ++ path ++ "'")
                               return f
 
 readTypedFiles :: [FileWithType] -> CachingIO [FileWithType]
