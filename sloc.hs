@@ -31,18 +31,30 @@ startsWith _             _        = False
 --
 -- COMMAND-LINE HANDLING
 
--- XXX: write usage for *this* program!
 putUsage progname = do
-    putStrLn ("Usage: " ++ progname ++ " [OPTION] [FILE...]")
-    putStrLn "Prints line, word, or char (with or without newlines) counts"
-    putStrLn "for each FILE. With no FILE, or with \"-\", standard input is"
-    putStrLn "counted instead. If no count type option is given, defaults to"
-    putStrLn "word counts."
-    putStrLn "The options below may be used:"
-    putStrLn "  -c            print character counts (excluding newlines)"
-    putStrLn "  -C            print character counts (including newlines)"
-    putStrLn "  -l            print line counts"
-    putStrLn "  -w            print word counts"
+    putStrLn ("Usage: " ++ progname ++ " [OPTION...] [[TYPE] FILE...]")
+    putStrLn "Prints source line of code (SLOC) counts for each FILE, with"
+    putStrLn "blank lines and comments ignored based on the provided TYPE"
+    putStrLn "of a file, or its guessed type if --auto[1] is used, or no"
+    putStrLn "type is provided."
+    putStrLn "All language options may be used with or without a 1 at the"
+    putStrLn "end, i.e. --python or --python1, with the first form marking"
+    putStrLn "all following files as that type (until another type is"
+    putStrLn "given), and the second marking *only* the file immediately"
+    putStrLn "following it."
+    putStrLn "The following type options (the single-file variants are"
+    putStrLn "omitted for brevity) are available:"
+    putStrLn "  --python      Python source"
+    putStrLn "  --haskell     Haskell source"
+    putStrLn "  --shell       shell (bash, zsh, etc.) script"
+    putStrLn "  --text        plain text (count all non-blank lines)"
+    putStrLn "  --auto        attempt to guess type"
+    putStrLn "Additionally, the following general options may be used:"
+    putStrLn "  -q            don't print filetype guesses"
+    putStrLn "  -v            print filetype guesses"
+    putStrLn "  -H            print large line counts with human-friendly"
+    putStrLn "                  suffixes (k, M, G, etc.)"
+    putStrLn "  -l            print exact line counts"
     putStrLn "  -h, --help    print this help message, and exit"
 
 parseArgs (x:xs) curType curDefaultType files flags
@@ -58,7 +70,7 @@ parseArgs (x:xs) curType curDefaultType files flags
     | x == "--auto1"    = parseArgs xs GuessType curDefaultType files flags
     | x == "-q"         = parseArgs xs curType curDefaultType files (Set.insert Quiet flags)
     | x == "-v"         = parseArgs xs curType curDefaultType files (Set.delete Quiet flags)
-    | x == "-h"         = parseArgs xs curType curDefaultType files (Set.insert HumanSizes flags)
+    | x == "-H"         = parseArgs xs curType curDefaultType files (Set.insert HumanSizes flags)
     | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete HumanSizes flags)
     | x == "-h"         = ([], curType, Set.singleton ShowHelp)
     | x == "--help"     = ([], curType, Set.singleton ShowHelp)
