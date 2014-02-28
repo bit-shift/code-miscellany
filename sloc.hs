@@ -1,4 +1,9 @@
 import Control.Monad (when)
+import Control.Monad.State (StateT, runStateT)
+import qualified Control.Monad.State as State
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import System.Environment (getArgs, getProgName)
 
@@ -9,6 +14,9 @@ data SourceType = PythonSource | HaskellSource | ShellSource | Plaintext | Guess
 data FileWithType = TypedFile FilePath SourceType (Maybe String)
     deriving (Eq, Show)
 data FileOrStdin = File FilePath | Stdin
+-- types for caching file contents
+type FileCache = Map FilePath String
+type CachingIO = StateT FileCache IO
 
 --
 -- COMMAND-LINE HANDLING
@@ -54,7 +62,7 @@ parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
 
 -- XXX: implement fully
 guessType (TypedFile path _ (Just contents)) = Plaintext
-guessType (TypedFile path _ _) = Plaintext
+guessType (TypedFile path _ Nothing) = error "guessType should never be called on an unread file."
 
 finalizeType f@(TypedFile path GuessType contents) = do
     let guessedType = guessType f
@@ -99,7 +107,22 @@ readFileOrStdin (File filename) = readFile filename
 readTypedFile (TypedFile path filetype _) = do
     let input = fileOrStdinFromPath path
     contents <- readFileOrStdin input
-    return (TypedFile path filetype (Just contents))
+    length contents `seq` (return (TypedFile path filetype (Just contents)))
+
+cachedReadTypedFile :: FileWithType -> CachingIO FileWithType
+cachedReadTypedFile f@(TypedFile path filetype _) = do 
+    cachedContents <- State.gets (Map.lookup path)
+    case cachedContents of
+        (Just contents) -> return (TypedFile path filetype (Just contents))
+        Nothing         -> do f@(TypedFile path _ contents) <- State.lift $ readTypedFile f
+                              case contents of
+                                (Just contents) -> State.modify (Map.insert path contents)
+                                Nothing         -> error "Failed to read file."
+                              return f
+
+readTypedFiles :: [FileWithType] -> CachingIO [FileWithType]
+readTypedFiles fs = do
+    mapM cachedReadTypedFile fs
 
 --
 -- PULL IT ALL TOGETHER
@@ -111,6 +134,6 @@ main = do
                 then [TypedFile "-" lastType Nothing]
                 else rawFiles
     when (Set.member ShowHelp flags) $ getProgName >>= putUsage
-    filesRead <- mapM readTypedFile files
+    (filesRead, _) <- runStateT (readTypedFiles files) Map.empty
     finalFiles <- mapM finalizeType filesRead
     mapM putStrLn (prettyCounts (map countSloc finalFiles))
