@@ -6,8 +6,9 @@ data Flags = ShowHelp | KSloc | Quiet
     deriving (Eq, Ord, Show)
 data SourceType = PythonSource | HaskellSource | ShellSource | Plaintext | GuessType
     deriving (Eq, Show)
-data FileWithType = TypedFile FilePath SourceType
+data FileWithType = TypedFile FilePath SourceType (Maybe String)
     deriving (Eq, Show)
+data FileOrStdin = File FilePath | Stdin
 
 --
 -- COMMAND-LINE HANDLING
@@ -43,7 +44,7 @@ parseArgs (x:xs) curType curDefaultType files flags
     | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete KSloc flags)
     | x == "-h"         = ([], curType, Set.singleton ShowHelp)
     | x == "--help"     = ([], curType, Set.singleton ShowHelp)
-    | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedFile x curType):files) flags
+    | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedFile x curType Nothing):files) flags
 parseArgs [] curType _ files flags = (reverse files, curType, flags)
 
 parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
@@ -51,17 +52,54 @@ parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
 --
 -- FILETYPE GUESSING
 
-guessType (TypedFile path _) = Plaintext
+-- XXX: implement fully
+guessType (TypedFile path _ (Just contents)) = Plaintext
+guessType (TypedFile path _ _) = Plaintext
 
-finalizeType f@(TypedFile path GuessType) = do
+finalizeType f@(TypedFile path GuessType contents) = do
     let guessedType = guessType f
     putStrLn ("NOTE: filetype of '" ++ path ++ "' not provided, guessed " ++ (languageName guessedType))
-    return (TypedFile path guessedType)
+    return (TypedFile path guessedType contents)
     where languageName PythonSource = "Python"
           languageName HaskellSource = "Haskell"
           languageName ShellSource = "shell (bash/etc.)"
           languageName Plaintext = "plain text"
-finalizeType f@(TypedFile _ _) = return f
+finalizeType f@(TypedFile _ _ _) = return f
+
+--
+-- SOURCE-LINE FILTERING
+
+sourceLines _ = id
+
+--
+-- LINE COUNTING
+
+countSloc (TypedFile path filetype Nothing) = (path, 0)
+countSloc (TypedFile path filetype (Just contents)) = (path, length ls)
+    where ls = sourceLines filetype (lines contents)
+
+prettyCounts counts = let biggestN (n:ns) acc = if n > acc
+                                                then biggestN ns n
+                                                else biggestN ns acc
+                          biggestN []     acc = acc
+                          numWidth = length (show (biggestN (map snd counts) 0))
+                          padNum n w = (take (w - (length (show n))) (repeat ' ')) ++ (show n)
+                          formatLine w (path, n) = (padNum n w) ++ " " ++ path
+                      in map (formatLine numWidth) counts
+
+--
+-- READING FILES
+
+fileOrStdinFromPath path | path == "-" = Stdin
+                         | otherwise   = File path
+
+readFileOrStdin Stdin           = getContents
+readFileOrStdin (File filename) = readFile filename
+
+readTypedFile (TypedFile path filetype _) = do
+    let input = fileOrStdinFromPath path
+    contents <- readFileOrStdin input
+    return (TypedFile path filetype (Just contents))
 
 --
 -- PULL IT ALL TOGETHER
@@ -70,8 +108,9 @@ main = do
     args <- getArgs
     let (rawFiles, lastType, flags) = parseArgsWithDefaults args
     let files = if (rawFiles == []) && (not (Set.member ShowHelp flags))
-                then [TypedFile "-" lastType]
+                then [TypedFile "-" lastType Nothing]
                 else rawFiles
     when (Set.member ShowHelp flags) $ getProgName >>= putUsage
-    finalFiles <- mapM finalizeType files
-    mapM (putStrLn . show) finalFiles
+    filesRead <- mapM readTypedFile files
+    finalFiles <- mapM finalizeType filesRead
+    mapM putStrLn (prettyCounts (map countSloc finalFiles))
