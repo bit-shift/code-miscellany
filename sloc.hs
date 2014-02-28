@@ -148,6 +148,7 @@ finalizeType quiet f@(TypedFile path GuessType contents) = do
           languageName HaskellSource = "Haskell"
           languageName ShellSource = "shell (bash/etc.)"
           languageName Plaintext = "plain text"
+          languageName GuessType = error "type shouldn't be unguessed after being guessed!"
 finalizeType _ f@(TypedFile _ _ _) = return f
 
 --
