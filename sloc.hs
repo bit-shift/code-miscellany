@@ -10,8 +10,8 @@ import System.Environment (getArgs, getProgName)
 
 data Flags = ShowHelp | HumanSizes | Quiet
     deriving (Eq, Ord, Show)
-data SourceType = PythonSource | HaskellSource | ShellSource | Plaintext | GuessType
-    deriving (Eq, Show)
+data SourceType = PythonSource | PerlSource | HaskellSource | ShellSource
+    | Plaintext | GuessType deriving (Eq, Show)
 data FileWithType = TypedFile FilePath SourceType (Maybe String)
     deriving (Eq, Show)
 data FileOrStdin = File FilePath | Stdin
@@ -45,6 +45,7 @@ putUsage progname = do
     putStrLn "The following type options (the single-file variants are"
     putStrLn "omitted for brevity) are available:"
     putStrLn "  --python      Python source"
+    putStrLn "  --perl        Perl source"
     putStrLn "  --haskell     Haskell source"
     putStrLn "  --shell       shell (bash, zsh, etc.) script"
     putStrLn "  --text        plain text (count all non-blank lines)"
@@ -60,6 +61,8 @@ putUsage progname = do
 parseArgs (x:xs) curType curDefaultType files flags
     | x == "--python"   = parseArgs xs PythonSource PythonSource files flags
     | x == "--python1"  = parseArgs xs PythonSource curDefaultType files flags
+    | x == "--perl"     = parseArgs xs PerlSource PerlSource files flags
+    | x == "--perl1"    = parseArgs xs PerlSource curDefaultType files flags
     | x == "--haskell"  = parseArgs xs HaskellSource HaskellSource files flags
     | x == "--haskell1" = parseArgs xs HaskellSource curDefaultType files flags
     | x == "--shell"    = parseArgs xs ShellSource ShellSource files flags
@@ -89,6 +92,7 @@ guessByExtension (TypedFile path _ _) =
        then GuessType
        else case last splitName of
         "py"       -> PythonSource
+        "pl"       -> PerlSource
         "hs"       -> HaskellSource
         "sh"       -> ShellSource
         "bash"     -> ShellSource
@@ -121,6 +125,7 @@ guessByShebang (TypedFile _ _ (Just contents)) =
                                 "python"     -> PythonSource
                                 "python2"    -> PythonSource
                                 "python3"    -> PythonSource  -- never seen this hardcoded, but I guess it's probably been done
+                                "perl"       -> PerlSource
                                 "runghc"     -> HaskellSource
                                 "runhaskell" -> HaskellSource
                                 _            -> GuessType
@@ -139,6 +144,7 @@ finalizeType quiet f@(TypedFile path GuessType contents) = do
     when (not quiet) $ putStrLn ("NOTE: filetype of '" ++ path ++ "' not provided, guessed " ++ (languageName guessedType))
     return (TypedFile path guessedType contents)
     where languageName PythonSource = "Python"
+          languageName PerlSource = "Perl"
           languageName HaskellSource = "Haskell"
           languageName ShellSource = "shell (bash/etc.)"
           languageName Plaintext = "plain text"
@@ -169,6 +175,8 @@ isHaskellComment = (startsWith "--") . stripLeadingWhitespace
 
 --- SOURCE-LINE FILTERS
 sourceLines PythonSource = filterNone [null, isAllWhitespace, isHashComment]
+
+sourceLines PerlSource = filterNone [null, isAllWhitespace, isHashComment]
 
 sourceLines HaskellSource = filterNone [null, isAllWhitespace, isHaskellComment]
 
