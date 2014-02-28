@@ -1,6 +1,7 @@
 import Control.Monad (when)
 import Control.Monad.State (StateT, runStateT)
 import qualified Control.Monad.State as State
+import Data.List.Split (splitOn)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -17,6 +18,15 @@ data FileOrStdin = File FilePath | Stdin
 -- types for caching file contents
 type FileCache = Map FilePath String
 type CachingIO = StateT FileCache IO
+
+--
+-- GENERAL FUNCTIONS USED IN MULTIPLE SECTIONS
+
+startsWith prefix@(p:ps) s@(c:cs) = if c == p
+                                    then startsWith cs ps
+                                    else False
+startsWith ""            _        = True
+startsWith _             _        = False
 
 --
 -- COMMAND-LINE HANDLING
@@ -60,8 +70,56 @@ parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
 --
 -- FILETYPE GUESSING
 
--- XXX: implement fully
-guessType (TypedFile path _ (Just contents)) = Plaintext
+--- INDIVIDUAL GUESSERS
+guessByExtension (TypedFile path _ _) =
+    let splitName = splitOn "." path
+    in if length splitName == 1
+       then GuessType
+       else case last splitName of
+        "py"       -> PythonSource
+        "hs"       -> HaskellSource
+        "sh"       -> ShellSource
+        "bash"     -> ShellSource
+        "zsh"      -> ShellSource
+        "txt"      -> Plaintext
+        "rst"      -> Plaintext
+        "md"       -> Plaintext
+        "mkd"      -> Plaintext
+        "markdown" -> Plaintext
+        "textile"  -> Plaintext
+        _          -> GuessType
+
+guessByShebang (TypedFile _ _ Nothing)         = GuessType
+guessByShebang (TypedFile _ _ (Just contents)) =
+    case lines contents of
+        []  -> GuessType
+        l:_ -> if not (startsWith "#!" l)
+               then GuessType
+               else let splitShebang = splitOn "/" l
+                    in if length splitShebang == 1
+                       then GuessType
+                       else let finalPart = last splitShebang
+                                progname = if startsWith "env " finalPart
+                                           then drop 4 finalPart
+                                           else finalPart
+                            in case progname of
+                                "sh"         -> ShellSource
+                                "bash"       -> ShellSource
+                                "zsh"        -> ShellSource
+                                "python"     -> PythonSource
+                                "python2"    -> PythonSource
+                                "python3"    -> PythonSource  -- never seen this hardcoded, but I guess it's probably been done
+                                "runghc"     -> HaskellSource
+                                "runhaskell" -> HaskellSource
+                                _            -> GuessType
+
+--- PUTTING THE GUESSERS TOGETHER
+applyGuessers (g:gs) f defaultType = case g f of
+                                        GuessType -> applyGuessers gs f defaultType
+                                        filetype  -> filetype
+applyGuessers []     _ defaultType = defaultType
+
+guessType f@(TypedFile path _ (Just contents)) = applyGuessers [guessByShebang, guessByExtension] f Plaintext
 guessType (TypedFile path _ Nothing) = error "guessType should never be called on an unread file."
 
 finalizeType f@(TypedFile path GuessType contents) = do
@@ -84,12 +142,6 @@ filterNone ps (x:xs) = if or (applyAll ps x)
                        then filterNone ps xs
                        else x:(filterNone ps xs)
 filterNone ps []     = []
-
-startsWith prefix@(p:ps) s@(c:cs) = if c == p
-                                    then startsWith cs ps
-                                    else False
-startsWith ""            _        = True
-startsWith _             _        = False
 
 stripLeadingWhitespace s@(c:cs) = if c == ' ' || c == '\t'
                                   then stripLeadingWhitespace cs
