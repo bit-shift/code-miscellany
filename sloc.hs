@@ -8,7 +8,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import System.Environment (getArgs, getProgName)
 
-data Flags = ShowHelp | KSloc | Quiet
+data Flags = ShowHelp | HumanSizes | Quiet
     deriving (Eq, Ord, Show)
 data SourceType = PythonSource | HaskellSource | ShellSource | Plaintext | GuessType
     deriving (Eq, Show)
@@ -58,8 +58,8 @@ parseArgs (x:xs) curType curDefaultType files flags
     | x == "--auto1"    = parseArgs xs GuessType curDefaultType files flags
     | x == "-q"         = parseArgs xs curType curDefaultType files (Set.insert Quiet flags)
     | x == "-v"         = parseArgs xs curType curDefaultType files (Set.delete Quiet flags)
-    | x == "-k"         = parseArgs xs curType curDefaultType files (Set.insert KSloc flags)
-    | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete KSloc flags)
+    | x == "-h"         = parseArgs xs curType curDefaultType files (Set.insert HumanSizes flags)
+    | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete HumanSizes flags)
     | x == "-h"         = ([], curType, Set.singleton ShowHelp)
     | x == "--help"     = ([], curType, Set.singleton ShowHelp)
     | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedFile x curType Nothing):files) flags
@@ -122,15 +122,15 @@ applyGuessers []     _ defaultType = defaultType
 guessType f@(TypedFile path _ (Just contents)) = applyGuessers [guessByShebang, guessByExtension] f Plaintext
 guessType (TypedFile path _ Nothing) = error "guessType should never be called on an unread file."
 
-finalizeType f@(TypedFile path GuessType contents) = do
+finalizeType quiet f@(TypedFile path GuessType contents) = do
     let guessedType = guessType f
-    putStrLn ("NOTE: filetype of '" ++ path ++ "' not provided, guessed " ++ (languageName guessedType))
+    when (not quiet) $ putStrLn ("NOTE: filetype of '" ++ path ++ "' not provided, guessed " ++ (languageName guessedType))
     return (TypedFile path guessedType contents)
     where languageName PythonSource = "Python"
           languageName HaskellSource = "Haskell"
           languageName ShellSource = "shell (bash/etc.)"
           languageName Plaintext = "plain text"
-finalizeType f@(TypedFile _ _ _) = return f
+finalizeType _ f@(TypedFile _ _ _) = return f
 
 --
 -- SOURCE-LINE FILTERING
@@ -222,5 +222,5 @@ main = do
                 else rawFiles
     when (Set.member ShowHelp flags) $ getProgName >>= putUsage
     (filesRead, _) <- runStateT (readTypedFiles files) Map.empty
-    finalFiles <- mapM finalizeType filesRead
+    finalFiles <- mapM (finalizeType (Set.member Quiet flags)) filesRead
     mapM putStrLn (prettyCounts (map countSloc finalFiles))
