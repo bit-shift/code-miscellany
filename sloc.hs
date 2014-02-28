@@ -15,6 +15,9 @@ data SourceType = PythonSource | PerlSource | HaskellSource | ShellSource
 data FileWithType = TypedFile FilePath SourceType (Maybe String)
     deriving (Eq, Show)
 data FileOrStdin = File FilePath | Stdin
+data Args = Args [FileWithType] SourceType (Set Flags)
+data CountedFile = CountedFile FilePath Int
+data ShowCountedFile = ShowCountedFile FilePath String
 -- types for caching file contents
 type FileCache = Map FilePath String
 type CachingIO = StateT FileCache IO
@@ -75,10 +78,10 @@ parseArgs (x:xs) curType curDefaultType files flags
     | x == "-v"         = parseArgs xs curType curDefaultType files (Set.delete Quiet flags)
     | x == "-H"         = parseArgs xs curType curDefaultType files (Set.insert HumanSizes flags)
     | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete HumanSizes flags)
-    | x == "-h"         = ([], curType, Set.singleton ShowHelp)
-    | x == "--help"     = ([], curType, Set.singleton ShowHelp)
+    | x == "-h"         = Args [] curType (Set.singleton ShowHelp)
+    | x == "--help"     = Args [] curType (Set.singleton ShowHelp)
     | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedFile x curType Nothing):files) flags
-parseArgs [] curType _ files flags = (reverse files, curType, flags)
+parseArgs [] curType _ files flags = Args (reverse files) curType flags
 
 parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
 
@@ -190,8 +193,8 @@ sourceLines _ = id
 --
 -- LINE COUNTING
 
-countSloc (TypedFile path filetype Nothing) = (path, 0)
-countSloc (TypedFile path filetype (Just contents)) = (path, length ls)
+countSloc (TypedFile path filetype Nothing) = CountedFile path 0
+countSloc (TypedFile path filetype (Just contents)) = CountedFile path (length ls)
     where ls = sourceLines filetype (lines contents)
 
 scaleDown n =
@@ -200,7 +203,7 @@ scaleDown n =
                                  else (n, steps)
     in scaleDownInner n 0
 
-showCount humanSizes (path, n) =
+showCount humanSizes (CountedFile path n) =
     let sizeStr = if not humanSizes
                   then show n
                   else let (scaledN, scaleSteps) = scaleDown (fromIntegral n)
@@ -220,7 +223,7 @@ showCount humanSizes (path, n) =
                        in if roundedN == (fromInteger fullyRoundN)  -- xyz.0
                           then (show fullyRoundN) ++ scaleSuffix
                           else (show roundedN) ++ scaleSuffix
-    in (path, sizeStr)
+    in ShowCountedFile path sizeStr
 
 prettyCounts humanSizes counts =
     let shownCounts = map (showCount humanSizes) counts
@@ -229,9 +232,10 @@ prettyCounts humanSizes counts =
                                  then longestN ns len
                                  else longestN ns acc
         longestN []     acc = acc
-        numWidth = longestN (map snd shownCounts) 0
+        getNumLines (ShowCountedFile _ n) = n
+        numWidth = longestN (map getNumLines shownCounts) 0
         padNum n w = (take (w - (length n)) (repeat ' ')) ++ n
-        formatLine w (path, n) = (padNum n w) ++ " " ++ path
+        formatLine w (ShowCountedFile path n) = (padNum n w) ++ " " ++ path
     in map (formatLine numWidth) shownCounts
 
 --
@@ -268,7 +272,7 @@ readTypedFiles fs = do
 
 main = do
     args <- getArgs
-    let (rawFiles, lastType, flags) = parseArgsWithDefaults args
+    let (Args rawFiles lastType flags) = parseArgsWithDefaults args
     let files = if (rawFiles == []) && (not (Set.member ShowHelp flags))
                 then [TypedFile "-" lastType Nothing]
                 else rawFiles
