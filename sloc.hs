@@ -1,10 +1,16 @@
 import Control.Monad (when)
+import qualified Data.Set as Set
 import System.Environment (getArgs, getProgName)
 
+data Flags = ShowHelp | KSloc | Quiet
+    deriving (Eq, Ord, Show)
 data SourceType = PythonSource | HaskellSource | ShellSource | Plaintext | GuessType
     deriving (Eq, Show)
 data FileWithType = TypedFile FilePath SourceType
     deriving (Eq, Show)
+
+--
+-- COMMAND-LINE HANDLING
 
 -- XXX: write usage for *this* program!
 putUsage progname = do
@@ -20,22 +26,52 @@ putUsage progname = do
     putStrLn "  -w            print word counts"
     putStrLn "  -h, --help    print this help message, and exit"
 
-parseArgs (x:xs) curType files
-    | x == "--python"  = parseArgs xs PythonSource files
-    | x == "--haskell" = parseArgs xs HaskellSource files
-    | x == "--shell"   = parseArgs xs ShellSource files
-    | x == "--text"    = parseArgs xs Plaintext files
-    | x == "--auto"    = parseArgs xs GuessType files
-    | x == "-h"        = ([], curType, True)
-    | x == "--help"    = ([], curType, True)
-    | otherwise        = parseArgs xs curType ((TypedFile x curType):files)
-parseArgs [] curType files = (reverse files, curType, False)
+parseArgs (x:xs) curType curDefaultType files flags
+    | x == "--python"   = parseArgs xs PythonSource PythonSource files flags
+    | x == "--python1"  = parseArgs xs PythonSource curDefaultType files flags
+    | x == "--haskell"  = parseArgs xs HaskellSource HaskellSource files flags
+    | x == "--haskell1" = parseArgs xs HaskellSource curDefaultType files flags
+    | x == "--shell"    = parseArgs xs ShellSource ShellSource files flags
+    | x == "--shell1"   = parseArgs xs ShellSource curDefaultType files flags
+    | x == "--text"     = parseArgs xs Plaintext Plaintext files flags
+    | x == "--text1"    = parseArgs xs Plaintext curDefaultType files flags
+    | x == "--auto"     = parseArgs xs GuessType GuessType files flags
+    | x == "--auto1"    = parseArgs xs GuessType curDefaultType files flags
+    | x == "-q"         = parseArgs xs curType curDefaultType files (Set.insert Quiet flags)
+    | x == "-v"         = parseArgs xs curType curDefaultType files (Set.delete Quiet flags)
+    | x == "-k"         = parseArgs xs curType curDefaultType files (Set.insert KSloc flags)
+    | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete KSloc flags)
+    | x == "-h"         = ([], curType, Set.singleton ShowHelp)
+    | x == "--help"     = ([], curType, Set.singleton ShowHelp)
+    | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedFile x curType):files) flags
+parseArgs [] curType _ files flags = (reverse files, curType, flags)
+
+parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
+
+--
+-- FILETYPE GUESSING
+
+guessType (TypedFile path _) = Plaintext
+
+finalizeType f@(TypedFile path GuessType) = do
+    let guessedType = guessType f
+    putStrLn ("NOTE: filetype of '" ++ path ++ "' not provided, guessed " ++ (languageName guessedType))
+    return (TypedFile path guessedType)
+    where languageName PythonSource = "Python"
+          languageName HaskellSource = "Haskell"
+          languageName ShellSource = "shell (bash/etc.)"
+          languageName Plaintext = "plain text"
+finalizeType f@(TypedFile _ _) = return f
+
+--
+-- PULL IT ALL TOGETHER
 
 main = do
     args <- getArgs
-    let (rawFiles, lastType, showHelp) = parseArgs args GuessType []
-    let files = if (rawFiles == []) && (not showHelp)
+    let (rawFiles, lastType, flags) = parseArgsWithDefaults args
+    let files = if (rawFiles == []) && (not (Set.member ShowHelp flags))
                 then [TypedFile "-" lastType]
                 else rawFiles
-    when showHelp $ getProgName >>= putUsage
-    mapM (putStrLn . show) files
+    when (Set.member ShowHelp flags) $ getProgName >>= putUsage
+    finalFiles <- mapM finalizeType files
+    mapM (putStrLn . show) finalFiles
