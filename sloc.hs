@@ -225,7 +225,7 @@ readFileOrStdin (File filename) = readFile filename
 readTypedFile (TypedFile path filetype _) = do
     let input = fileOrStdinFromPath path
     contents <- readFileOrStdin input
-    length contents `seq` (return (TypedFile path filetype (Just contents)))
+    return (TypedFile path filetype (Just contents))
 
 cachedReadTypedFile :: FileWithType -> CachingIO FileWithType
 cachedReadTypedFile f@(TypedFile path filetype _) = do 
