@@ -272,7 +272,9 @@ main = do
     let files = if (rawFiles == []) && (not (Set.member ShowHelp flags))
                 then [TypedFile "-" lastType Nothing]
                 else rawFiles
-    when (Set.member ShowHelp flags) $ getProgName >>= putUsage
-    (filesRead, _) <- runStateT (readTypedFiles files) Map.empty
-    finalFiles <- mapM (finalizeType (Set.member Quiet flags)) filesRead
-    mapM putStrLn (prettyCounts (Set.member HumanSizes flags) (map countSloc finalFiles))
+    if Set.member ShowHelp flags
+    then getProgName >>= putUsage
+    else do
+        (filesRead, _) <- runStateT (readTypedFiles files) Map.empty
+        finalFiles <- mapM (finalizeType (Set.member Quiet flags)) filesRead
+        mapM_ putStrLn (prettyCounts (Set.member HumanSizes flags) (map countSloc finalFiles))
