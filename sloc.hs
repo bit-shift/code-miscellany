@@ -77,9 +77,6 @@ finalizeType f@(TypedFile _ _ _) = return f
 --
 -- SOURCE-LINE FILTERING
 
---- LINE TESTS
-isAllWhitespace line = null (filter (\c -> not (c == ' ' || c == '\t')) line)
-
 --- HELPERS
 applyAll fs x = [f x | f <- fs]
 
@@ -88,7 +85,31 @@ filterNone ps (x:xs) = if or (applyAll ps x)
                        else x:(filterNone ps xs)
 filterNone ps []     = []
 
+startsWith prefix@(p:ps) s@(c:cs) = if c == p
+                                    then startsWith cs ps
+                                    else False
+startsWith ""            _        = True
+startsWith _             _        = False
+
+stripLeadingWhitespace s@(c:cs) = if c == ' ' || c == '\t'
+                                  then stripLeadingWhitespace cs
+                                  else s
+stripLeadingWhitespace ""       = ""
+
+--- LINE TESTS
+isAllWhitespace = null . stripLeadingWhitespace
+
+isHashComment = (startsWith "#") . stripLeadingWhitespace
+
+isHaskellComment = (startsWith "--") . stripLeadingWhitespace
+
 --- SOURCE-LINE FILTERS
+sourceLines PythonSource = filterNone [null, isAllWhitespace, isHashComment]
+
+sourceLines HaskellSource = filterNone [null, isAllWhitespace, isHaskellComment]
+
+sourceLines ShellSource = filterNone [null, isAllWhitespace, isHashComment]
+
 sourceLines Plaintext = filterNone [null, isAllWhitespace]
 
 sourceLines _ = id
