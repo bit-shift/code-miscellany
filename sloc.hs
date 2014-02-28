@@ -173,14 +173,45 @@ countSloc (TypedFile path filetype Nothing) = (path, 0)
 countSloc (TypedFile path filetype (Just contents)) = (path, length ls)
     where ls = sourceLines filetype (lines contents)
 
-prettyCounts counts = let biggestN (n:ns) acc = if n > acc
-                                                then biggestN ns n
-                                                else biggestN ns acc
-                          biggestN []     acc = acc
-                          numWidth = length (show (biggestN (map snd counts) 0))
-                          padNum n w = (take (w - (length (show n))) (repeat ' ')) ++ (show n)
-                          formatLine w (path, n) = (padNum n w) ++ " " ++ path
-                      in map (formatLine numWidth) counts
+scaleDown n =
+    let scaleDownInner n steps = if n >= 1000.0 && steps < 8
+                                 then scaleDownInner (n / 1000.0) (steps + 1)
+                                 else (n, steps)
+    in scaleDownInner n 0
+
+showCount humanSizes (path, n) =
+    let sizeStr = if not humanSizes
+                  then show n
+                  else let (scaledN, scaleSteps) = scaleDown (fromIntegral n)
+                           scaleSuffix = case scaleSteps of
+                                            0 -> ""
+                                            1 -> "k"
+                                            2 -> "M"
+                                            3 -> "G"
+                                            4 -> "T"
+                                            5 -> "P"
+                                            6 -> "E"
+                                            7 -> "Z"
+                                            8 -> "Y"
+                                            _ -> error "Shouldn't happen."
+                           roundedN = (fromInteger (round (scaledN * 10)) / 10.0)
+                           fullyRoundN = round roundedN
+                       in if roundedN == (fromInteger fullyRoundN)  -- xyz.0
+                          then (show fullyRoundN) ++ scaleSuffix
+                          else (show roundedN) ++ scaleSuffix
+    in (path, sizeStr)
+
+prettyCounts humanSizes counts =
+    let shownCounts = map (showCount humanSizes) counts
+        longestN (n:ns) acc = let len = length n
+                              in if len > acc
+                                 then longestN ns len
+                                 else longestN ns acc
+        longestN []     acc = acc
+        numWidth = longestN (map snd shownCounts) 0
+        padNum n w = (take (w - (length n)) (repeat ' ')) ++ n
+        formatLine w (path, n) = (padNum n w) ++ " " ++ path
+    in map (formatLine numWidth) shownCounts
 
 --
 -- READING FILES
@@ -223,4 +254,4 @@ main = do
     when (Set.member ShowHelp flags) $ getProgName >>= putUsage
     (filesRead, _) <- runStateT (readTypedFiles files) Map.empty
     finalFiles <- mapM (finalizeType (Set.member Quiet flags)) filesRead
-    mapM putStrLn (prettyCounts (map countSloc finalFiles))
+    mapM putStrLn (prettyCounts (Set.member HumanSizes flags) (map countSloc finalFiles))
