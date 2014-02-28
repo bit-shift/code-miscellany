@@ -129,3 +129,8 @@ So far contains:
     - A pretty nice alternative implementation of wc in Haskell::
 
        WC.hs
+
+    - A SLOC counter written in Haskell, with various heuristics for guessing
+      filetypes and ignoring comment/etc. lines based on filetype::
+
+       sloc.hs
