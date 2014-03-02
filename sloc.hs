@@ -1,3 +1,5 @@
+module Sloc where
+
 import Control.Monad (when)
 import Control.Monad.State (StateT, runStateT)
 import qualified Control.Monad.State as State
