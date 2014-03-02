@@ -142,17 +142,29 @@ applyGuessers []     defaultType _ = defaultType
 
 guessType = applyGuessers [guessByShebang, guessByExtension] Plaintext
 
-finalizeType quiet f@(TypedFile (TypedPath path GuessType) contents) = do
+finalizeTypes (f@(TypedFile (TypedPath path GuessType) contents):fs) =
     let guessedType = guessType f
-    when (not quiet) $ putStrLn ("NOTE: filetype of '" ++ path ++ "' not provided, guessed " ++ (languageName guessedType))
-    return (TypedFile (TypedPath path guessedType) contents)
-    where languageName PythonSource = "Python"
-          languageName PerlSource = "Perl"
-          languageName HaskellSource = "Haskell"
-          languageName ShellSource = "shell (bash/etc.)"
-          languageName Plaintext = "plain text"
-          languageName GuessType = error "type shouldn't be unguessed after being guessed!"
-finalizeType _ f@(TypedFile _ _) = return f
+        finalizedFile = TypedFile (TypedPath path guessedType) contents
+    in finalizedFile:(finalizeTypes fs)
+finalizeTypes (f:fs) = f:(finalizeTypes fs)
+finalizeTypes [] = []
+
+diffLists (x:xs) (y:ys) = if x == y
+                          then diffLists xs ys
+                          else (x, y):(diffLists xs ys)
+diffLists _      _      = []
+
+describeGuesses ((TypedFile (TypedPath path filetype) _):gs) =
+    let languageName = case filetype of
+            PythonSource  -> "Python"
+            PerlSource    -> "Perl"
+            HaskellSource -> "Haskell"
+            ShellSource   -> "shell (bash/etc.)"
+            Plaintext     -> "plain text"
+            GuessType     -> error "type shouldn't be unguessed after being guessed!"
+        desc = "filetype of '" ++ path ++ "' not provided, guessed " ++ languageName
+    in desc:(describeGuesses gs)
+describeGuesses [] = []
 
 --
 -- SOURCE-LINE FILTERING
@@ -277,5 +289,8 @@ main = do
     then getProgName >>= putUsage
     else do
         (filesRead, _) <- runStateT (readTypedFiles files) Map.empty
-        finalFiles <- mapM (finalizeType (Set.member Quiet flags)) filesRead
+        let finalFiles = finalizeTypes filesRead
+        when (not (Set.member Quiet flags)) $ do
+            let guesses = map snd (diffLists filesRead finalFiles)
+            mapM_ (putStrLn . ("NOTE: " ++)) (describeGuesses guesses)
         mapM_ putStrLn (prettyCounts (Set.member HumanSizes flags) (map countSloc finalFiles))
