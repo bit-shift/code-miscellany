@@ -12,10 +12,12 @@ data Flags = ShowHelp | HumanSizes | Quiet
     deriving (Eq, Ord, Show)
 data SourceType = PythonSource | PerlSource | HaskellSource | ShellSource
     | Plaintext | GuessType deriving (Eq, Show)
-data FileWithType = TypedFile FilePath SourceType (Maybe String)
+data PathWithType = TypedPath FilePath SourceType
+    deriving (Eq, Show)
+data FileWithType = TypedFile PathWithType String
     deriving (Eq, Show)
 data FileOrStdin = File FilePath | Stdin
-data Args = Args [FileWithType] SourceType (Set Flags)
+data Args = Args [PathWithType] SourceType (Set Flags)
 data CountedFile = CountedFile FilePath Int
 data ShowCountedFile = ShowCountedFile FilePath String
 -- types for caching file contents
@@ -80,7 +82,7 @@ parseArgs (x:xs) curType curDefaultType files flags
     | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete HumanSizes flags)
     | x == "-h"         = Args [] curType (Set.singleton ShowHelp)
     | x == "--help"     = Args [] curType (Set.singleton ShowHelp)
-    | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedFile x curType Nothing):files) flags
+    | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedPath x curType):files) flags
 parseArgs [] curType _ files flags = Args (reverse files) curType flags
 
 parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
@@ -89,7 +91,7 @@ parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
 -- FILETYPE GUESSING
 
 --- INDIVIDUAL GUESSERS
-guessByExtension (TypedFile path _ _) =
+guessByExtension (TypedFile (TypedPath path _) _) =
     let splitName = splitOn "." path
     in if length splitName == 1
        then GuessType
@@ -108,8 +110,7 @@ guessByExtension (TypedFile path _ _) =
         "textile"  -> Plaintext
         _          -> GuessType
 
-guessByShebang (TypedFile _ _ Nothing)         = GuessType
-guessByShebang (TypedFile _ _ (Just contents)) =
+guessByShebang (TypedFile _ contents) =
     case lines contents of
         []  -> GuessType
         l:_ -> if not (startsWith "#!" l)
@@ -134,25 +135,24 @@ guessByShebang (TypedFile _ _ (Just contents)) =
                                 _            -> GuessType
 
 --- PUTTING THE GUESSERS TOGETHER
-applyGuessers (g:gs) f defaultType = case g f of
-                                        GuessType -> applyGuessers gs f defaultType
+applyGuessers (g:gs) defaultType f = case g f of
+                                        GuessType -> applyGuessers gs defaultType f
                                         filetype  -> filetype
-applyGuessers []     _ defaultType = defaultType
+applyGuessers []     defaultType _ = defaultType
 
-guessType f@(TypedFile path _ (Just contents)) = applyGuessers [guessByShebang, guessByExtension] f Plaintext
-guessType (TypedFile path _ Nothing) = error "guessType should never be called on an unread file."
+guessType = applyGuessers [guessByShebang, guessByExtension] Plaintext
 
-finalizeType quiet f@(TypedFile path GuessType contents) = do
+finalizeType quiet f@(TypedFile (TypedPath path GuessType) contents) = do
     let guessedType = guessType f
     when (not quiet) $ putStrLn ("NOTE: filetype of '" ++ path ++ "' not provided, guessed " ++ (languageName guessedType))
-    return (TypedFile path guessedType contents)
+    return (TypedFile (TypedPath path guessedType) contents)
     where languageName PythonSource = "Python"
           languageName PerlSource = "Perl"
           languageName HaskellSource = "Haskell"
           languageName ShellSource = "shell (bash/etc.)"
           languageName Plaintext = "plain text"
           languageName GuessType = error "type shouldn't be unguessed after being guessed!"
-finalizeType _ f@(TypedFile _ _ _) = return f
+finalizeType _ f@(TypedFile _ _) = return f
 
 --
 -- SOURCE-LINE FILTERING
@@ -193,8 +193,7 @@ sourceLines _ = id
 --
 -- LINE COUNTING
 
-countSloc (TypedFile path filetype Nothing) = CountedFile path 0
-countSloc (TypedFile path filetype (Just contents)) = CountedFile path (length ls)
+countSloc (TypedFile (TypedPath path filetype) contents) = CountedFile path (length ls)
     where ls = sourceLines filetype (lines contents)
 
 scaleDown n =
@@ -247,23 +246,21 @@ fileOrStdinFromPath path | path == "-" = Stdin
 readFileOrStdin Stdin           = getContents
 readFileOrStdin (File filename) = readFile filename
 
-readTypedFile (TypedFile path filetype _) = do
+readTypedFile p@(TypedPath path filetype) = do
     let input = fileOrStdinFromPath path
     contents <- readFileOrStdin input
-    return (TypedFile path filetype (Just contents))
+    return (TypedFile p contents)
 
-cachedReadTypedFile :: FileWithType -> CachingIO FileWithType
-cachedReadTypedFile f@(TypedFile path filetype _) = do 
+cachedReadTypedFile :: PathWithType -> CachingIO FileWithType
+cachedReadTypedFile p@(TypedPath path filetype) = do
     cachedContents <- State.gets (Map.lookup path)
     case cachedContents of
-        (Just contents) -> return (TypedFile path filetype (Just contents))
-        Nothing         -> do f@(TypedFile path _ contents) <- State.lift $ readTypedFile f
-                              case contents of
-                                (Just contents) -> State.modify (Map.insert path contents)
-                                Nothing         -> error ("Failed to read '" ++ path ++ "'")
+        (Just contents) -> return (TypedFile p contents)
+        Nothing         -> do f@(TypedFile _ contents) <- State.lift $ readTypedFile p
+                              State.modify (Map.insert path contents)
                               return f
 
-readTypedFiles :: [FileWithType] -> CachingIO [FileWithType]
+readTypedFiles :: [PathWithType] -> CachingIO [FileWithType]
 readTypedFiles fs = do
     mapM cachedReadTypedFile fs
 
@@ -274,7 +271,7 @@ main = do
     args <- getArgs
     let (Args rawFiles lastType flags) = parseArgsWithDefaults args
     let files = if (rawFiles == []) && (not (Set.member ShowHelp flags))
-                then [TypedFile "-" lastType Nothing]
+                then [TypedPath "-" lastType]
                 else rawFiles
     if Set.member ShowHelp flags
     then getProgName >>= putUsage
