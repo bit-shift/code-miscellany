@@ -134,3 +134,8 @@ So far contains:
       filetypes and ignoring comment/etc. lines based on filetype::
 
        sloc.hs
+
+    - A little tool for tracking Mysterious Island Quest casualties in KoL,
+      since Kolproxy's tracking is temporarily kaput::
+
+       island_counter.hs
