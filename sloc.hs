@@ -1,8 +1,11 @@
-module Sloc where
+module Main (main)
+where
 
 import Control.Monad (when)
 import Control.Monad.State (StateT, runStateT)
 import qualified Control.Monad.State as State
+import Data.Char (isSpace)
+import Data.List (isPrefixOf)
 import Data.List.Split (splitOn)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -25,15 +28,6 @@ data ShowCountedFile = ShowCountedFile FilePath String
 -- types for caching file contents
 type FileCache = Map FilePath String
 type CachingIO = StateT FileCache IO
-
---
--- GENERAL FUNCTIONS USED IN MULTIPLE SECTIONS
-
-startsWith prefix@(p:ps) s@(c:cs) = if c == p
-                                    then startsWith cs ps
-                                    else False
-startsWith ""            _        = True
-startsWith _             _        = False
 
 --
 -- COMMAND-LINE HANDLING
@@ -115,13 +109,13 @@ guessByExtension (TypedFile (TypedPath path _) _) =
 guessByShebang (TypedFile _ contents) =
     case lines contents of
         []  -> GuessType
-        l:_ -> if not (startsWith "#!" l)
+        l:_ -> if not ("#!" `isPrefixOf` l)
                then GuessType
                else let splitShebang = splitOn "/" l
                     in if length splitShebang == 1
                        then GuessType
                        else let finalPart = last splitShebang
-                                progname = if startsWith "env " finalPart
+                                progname = if "env " `isPrefixOf` finalPart
                                            then drop 4 finalPart
                                            else finalPart
                             in case progname of
@@ -179,17 +173,12 @@ filterNone ps (x:xs) = if or (applyAll ps x)
                        else x:(filterNone ps xs)
 filterNone ps []     = []
 
-stripLeadingWhitespace s@(c:cs) = if c == ' ' || c == '\t'
-                                  then stripLeadingWhitespace cs
-                                  else s
-stripLeadingWhitespace ""       = ""
-
 --- LINE TESTS
-isAllWhitespace = null . stripLeadingWhitespace
+isAllWhitespace = all isSpace
 
-isHashComment = (startsWith "#") . stripLeadingWhitespace
+isHashComment = ("#" `isPrefixOf`) . dropWhile isSpace
 
-isHaskellComment = (startsWith "--") . stripLeadingWhitespace
+isHaskellComment = ("--" `isPrefixOf`) . dropWhile isSpace
 
 --- SOURCE-LINE FILTERS
 sourceLines PythonSource = filterNone [null, isAllWhitespace, isHashComment]
