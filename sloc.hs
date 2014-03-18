@@ -1,6 +1,7 @@
 module Main (main)
 where
 
+import Control.Applicative ((<*>))
 import Control.Monad (when)
 import Control.Monad.State (StateT, runStateT)
 import qualified Control.Monad.State as State
@@ -166,9 +167,7 @@ describeGuesses [] = []
 -- SOURCE-LINE FILTERING
 
 --- HELPERS
-applyAll fs x = [f x | f <- fs]
-
-filterNone ps (x:xs) = if or (applyAll ps x)
+filterNone ps (x:xs) = if or $ ps <*> [x]
                        then filterNone ps xs
                        else x:(filterNone ps xs)
 filterNone ps []     = []
