@@ -6,7 +6,7 @@ import Control.Monad (when)
 import Control.Monad.State (StateT, runStateT)
 import qualified Control.Monad.State as State
 import Data.Char (isSpace)
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf, isInfixOf)
 import Data.List.Split (splitOn)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -185,6 +185,17 @@ sourceLines PythonSource = filterNone [null, isAllWhitespace, isHashComment]
 sourceLines PerlSource = filterNone [null, isAllWhitespace, isHashComment]
 
 sourceLines HaskellSource = filterNone [null, isAllWhitespace, isHaskellComment]
+                          . stripMultilineComments False
+    where stripMultilineComments False (l:ls) =
+            if "{-" `isPrefixOf` (dropWhile isSpace l)
+            then stripMultilineComments True (l:ls)
+            else l : stripMultilineComments False ls
+          stripMultilineComments True  (l:ls) =
+            if "-}" `isInfixOf` l
+            then let l' = concat . drop 1 . splitOn "-}" $ l
+                 in stripMultilineComments False (l':ls)
+            else stripMultilineComments True ls
+          stripMultilineComments _     _      = []
 
 sourceLines ShellSource = filterNone [null, isAllWhitespace, isHashComment]
 
