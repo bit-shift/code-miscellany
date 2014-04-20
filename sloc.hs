@@ -3,7 +3,7 @@ where
 
 import Control.Applicative ((<*>))
 import Control.Monad (when)
-import Control.Monad.State (StateT, runStateT)
+import Control.Monad.State (StateT, runStateT, unless)
 import qualified Control.Monad.State as State
 import Data.Char (isSpace)
 import Data.List (isPrefixOf, isInfixOf)
@@ -79,7 +79,7 @@ parseArgs (x:xs) curType curDefaultType files flags
     | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete HumanSizes flags)
     | x == "-h"         = Args [] curType (Set.singleton ShowHelp)
     | x == "--help"     = Args [] curType (Set.singleton ShowHelp)
-    | otherwise         = parseArgs xs curDefaultType curDefaultType ((TypedPath x curType):files) flags
+    | otherwise         = parseArgs xs curDefaultType curDefaultType (TypedPath x curType : files) flags
 parseArgs [] curType _ files flags = Args (reverse files) curType flags
 
 parseArgsWithDefaults args = parseArgs args GuessType GuessType [] Set.empty
@@ -142,16 +142,16 @@ guessType = applyGuessers [guessByShebang, guessByExtension] Plaintext
 finalizeTypes (f@(TypedFile (TypedPath path GuessType) contents):fs) =
     let guessedType = guessType f
         finalizedFile = TypedFile (TypedPath path guessedType) contents
-    in finalizedFile:(finalizeTypes fs)
-finalizeTypes (f:fs) = f:(finalizeTypes fs)
+    in finalizedFile : finalizeTypes fs
+finalizeTypes (f:fs) = f : finalizeTypes fs
 finalizeTypes [] = []
 
 diffLists (x:xs) (y:ys) = if x == y
                           then diffLists xs ys
-                          else (x, y):(diffLists xs ys)
+                          else (x, y) : diffLists xs ys
 diffLists _      _      = []
 
-describeGuesses ((TypedFile (TypedPath path filetype) _):gs) =
+describeGuesses (TypedFile (TypedPath path filetype) _ : gs) =
     let languageName = case filetype of
             PythonSource  -> "Python"
             PerlSource    -> "Perl"
@@ -160,7 +160,7 @@ describeGuesses ((TypedFile (TypedPath path filetype) _):gs) =
             Plaintext     -> "plain text"
             GuessType     -> error "type shouldn't be unguessed after being guessed!"
         desc = "filetype of '" ++ path ++ "' not provided, guessed " ++ languageName
-    in desc:(describeGuesses gs)
+    in desc : describeGuesses gs
 describeGuesses [] = []
 
 --
@@ -169,7 +169,7 @@ describeGuesses [] = []
 --- HELPERS
 filterNone ps (x:xs) = if or $ ps <*> [x]
                        then filterNone ps xs
-                       else x:(filterNone ps xs)
+                       else x : filterNone ps xs
 filterNone ps []     = []
 
 --- LINE TESTS
@@ -187,7 +187,7 @@ sourceLines PerlSource = filterNone [null, isAllWhitespace, isHashComment]
 sourceLines HaskellSource = filterNone [null, isAllWhitespace, isHaskellComment]
                           . stripMultilineComments False
     where stripMultilineComments False (l:ls) =
-            if "{-" `isPrefixOf` (dropWhile isSpace l)
+            if "{-" `isPrefixOf` dropWhile isSpace l
             then stripMultilineComments True (l:ls)
             else l : stripMultilineComments False ls
           stripMultilineComments True  (l:ls) =
@@ -232,22 +232,20 @@ showCount humanSizes (CountedFile path n) =
                                             _ -> error "Shouldn't happen."
                            roundedN = (fromInteger (round (scaledN * 10)) / 10.0)
                            fullyRoundN = round roundedN
-                       in if roundedN == (fromInteger fullyRoundN)  -- xyz.0
-                          then (show fullyRoundN) ++ scaleSuffix
-                          else (show roundedN) ++ scaleSuffix
+                       in if roundedN == fromInteger fullyRoundN  -- xyz.0
+                          then show fullyRoundN ++ scaleSuffix
+                          else show roundedN ++ scaleSuffix
     in ShowCountedFile path sizeStr
 
 prettyCounts humanSizes counts =
     let shownCounts = map (showCount humanSizes) counts
         longestN (n:ns) acc = let len = length n
-                              in if len > acc
-                                 then longestN ns len
-                                 else longestN ns acc
+                              in longestN ns (if len > acc then len else acc)
         longestN []     acc = acc
         getNumLines (ShowCountedFile _ n) = n
         numWidth = longestN (map getNumLines shownCounts) 0
-        padNum n w = (take (w - (length n)) (repeat ' ')) ++ n
-        formatLine w (ShowCountedFile path n) = (padNum n w) ++ " " ++ path
+        padNum n w = replicate (w - length n) ' ' ++ n
+        formatLine w (ShowCountedFile path n) = padNum n w ++ " " ++ path
     in map (formatLine numWidth) shownCounts
 
 --
@@ -274,8 +272,7 @@ cachedReadTypedFile p@(TypedPath path filetype) = do
                               return f
 
 readTypedFiles :: [PathWithType] -> CachingIO [FileWithType]
-readTypedFiles fs = do
-    mapM cachedReadTypedFile fs
+readTypedFiles = mapM cachedReadTypedFile
 
 --
 -- PULL IT ALL TOGETHER
@@ -283,7 +280,7 @@ readTypedFiles fs = do
 main = do
     args <- getArgs
     let (Args rawFiles lastType flags) = parseArgsWithDefaults args
-    let files = if (rawFiles == []) && (not (Set.member ShowHelp flags))
+    let files = if null rawFiles && not (Set.member ShowHelp flags)
                 then [TypedPath "-" lastType]
                 else rawFiles
     if Set.member ShowHelp flags
@@ -291,7 +288,7 @@ main = do
     else do
         (filesRead, _) <- runStateT (readTypedFiles files) Map.empty
         let finalFiles = finalizeTypes filesRead
-        when (not (Set.member Quiet flags)) $ do
+        unless (Set.member Quiet flags) $ do
             let guesses = map snd (diffLists filesRead finalFiles)
             mapM_ (putStrLn . ("NOTE: " ++)) (describeGuesses guesses)
         mapM_ putStrLn (prettyCounts (Set.member HumanSizes flags) (map countSloc finalFiles))
