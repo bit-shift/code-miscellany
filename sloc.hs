@@ -14,7 +14,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import System.Environment (getArgs, getProgName)
 
-data Flags = ShowHelp | HumanSizes | Quiet
+data Flags = ShowHelp | HumanSizes | Quiet | ShowTotal | HideIndividual
     deriving (Eq, Ord, Show)
 data SourceType = PythonSource | PerlSource | HaskellSource | ShellSource
     | Plaintext | GuessType deriving (Eq, Show)
@@ -24,7 +24,7 @@ data FileWithType = TypedFile PathWithType String
     deriving (Eq, Show)
 data FileOrStdin = File FilePath | Stdin
 data Args = Args [PathWithType] SourceType (Set Flags)
-data CountedFile = CountedFile FilePath Int
+data CountedFile = CountedFile { cfPath :: FilePath, cfCount :: Int }
 data ShowCountedFile = ShowCountedFile FilePath String
 -- types for caching file contents
 type FileCache = Map FilePath String
@@ -54,10 +54,14 @@ putUsage progname = do
     putStrLn "  --auto        attempt to guess type"
     putStrLn "Additionally, the following general options may be used:"
     putStrLn "  -q            don't print filetype guesses"
-    putStrLn "  -v            print filetype guesses"
+    putStrLn "  -v            print filetype guesses (DEFAULT)"
+    putStrLn "  -t            print summary (total line count)"
+    putStrLn "  -T            don't print summary (DEFAULT)"
+    putStrLn "  -s            print summary only (implies -t)"
+    putStrLn "  -a            print line counts for all files (DEFAULT)"
     putStrLn "  -H            print large line counts with human-friendly"
     putStrLn "                  suffixes (k, M, G, etc.)"
-    putStrLn "  -l            print exact line counts"
+    putStrLn "  -l            print exact line counts (DEFAULT)"
     putStrLn "  -h, --help    print this help message, and exit"
 
 parseArgs (x:xs) curType curDefaultType files flags
@@ -75,6 +79,12 @@ parseArgs (x:xs) curType curDefaultType files flags
     | x == "--auto1"    = parseArgs xs GuessType curDefaultType files flags
     | x == "-q"         = parseArgs xs curType curDefaultType files (Set.insert Quiet flags)
     | x == "-v"         = parseArgs xs curType curDefaultType files (Set.delete Quiet flags)
+    | x == "-t"         = parseArgs xs curType curDefaultType files (Set.insert ShowTotal flags)
+    | x == "-T"         = parseArgs xs curType curDefaultType files (Set.delete ShowTotal flags)
+    | x == "-s"         = parseArgs xs curType curDefaultType files (Set.insert ShowTotal
+                                                                   . Set.insert HideIndividual
+                                                                   $ flags)
+    | x == "-a"         = parseArgs xs curType curDefaultType files (Set.delete HideIndividual flags)
     | x == "-H"         = parseArgs xs curType curDefaultType files (Set.insert HumanSizes flags)
     | x == "-l"         = parseArgs xs curType curDefaultType files (Set.delete HumanSizes flags)
     | x == "-h"         = Args [] curType (Set.singleton ShowHelp)
@@ -237,8 +247,9 @@ showCount humanSizes (CountedFile path n) =
                           else show roundedN ++ scaleSuffix
     in ShowCountedFile path sizeStr
 
-prettyCounts humanSizes counts =
-    let shownCounts = map (showCount humanSizes) counts
+prettyCounts fHumanSizes fTotal fOnlyTotal counts =
+    let totalCount = (++ " total lines") . show . sum . map cfCount $ counts
+        shownCounts = map (showCount fHumanSizes) counts
         longestN (n:ns) acc = let len = length n
                               in longestN ns (if len > acc then len else acc)
         longestN []     acc = acc
@@ -246,7 +257,15 @@ prettyCounts humanSizes counts =
         numWidth = longestN (map getNumLines shownCounts) 0
         padNum n w = replicate (w - length n) ' ' ++ n
         formatLine w (ShowCountedFile path n) = padNum n w ++ " " ++ path
-    in map (formatLine numWidth) shownCounts
+    in (if fOnlyTotal
+        then []
+        else map (formatLine numWidth) shownCounts)
+       ++
+       (if fTotal
+        then if fOnlyTotal
+             then [totalCount]
+             else ["", totalCount]
+        else [])
 
 --
 -- READING FILES
@@ -291,4 +310,6 @@ main = do
         unless (Set.member Quiet flags) $ do
             let guesses = map snd (diffLists filesRead finalFiles)
             mapM_ (putStrLn . ("NOTE: " ++)) (describeGuesses guesses)
-        mapM_ putStrLn (prettyCounts (Set.member HumanSizes flags) (map countSloc finalFiles))
+        let [fHumanSizes, fTotal, fOnlyTotal] = map (flip Set.member flags)
+                                              $ [HumanSizes, ShowTotal, HideIndividual]
+        mapM_ putStrLn (prettyCounts fHumanSizes fTotal fOnlyTotal (map countSloc finalFiles))
